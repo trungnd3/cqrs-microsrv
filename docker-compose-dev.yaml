@@ -1,0 +1,62 @@
+version: '3'
+
+services:
+  eventstore.db:
+    image: docker.eventstore.com/eventstore/eventstoredb-ee:24.10
+    environment:
+      - EVENTSTORE_CLUSTER_SIZE=1
+      - EVENTSTORE_RUN_PROJECTIONS=All
+      - EVENTSTORE_START_STANDARD_PROJECTIONS=true
+      - EVENTSTORE_NODE_PORT=2113
+      - EVENTSTORE_INSECURE=true
+      - EVENTSTORE_ENABLE_ATOM_PUB_OVER_HTTP=true
+    ports:
+      - "2113:2113"
+    volumes:
+      - type: volume
+        source: eventstore-volume-data
+        target: /var/lib/eventstore
+      - type: volume
+        source: eventstore-volume-logs
+        target: /var/log/eventstore
+
+  nginx:
+    restart: always
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile.dev
+    ports:
+      - 3000:80
+    depends_on:
+      - command
+      - query
+
+  command:
+    restart: always
+    build:
+      context: ./command
+      dockerfile: Dockerfile.dev
+    environment:
+      - EVENTSTORE_URL=esdb://eventstore.db:2113?tls=false
+    volumes:
+      - /app/node_modules
+      - ./command:/app
+    depends_on:
+      - eventstore.db
+
+  query:
+    restart: always
+    build:
+      context: ./query
+      dockerfile: Dockerfile.dev
+    environment:
+      - EVENTSTORE_URL=esdb://eventstore.db:2113?tls=false
+    volumes:
+      - /app/node_modules
+      - ./query:/app
+    depends_on:
+      - eventstore.db
+
+volumes:
+  eventstore-volume-data:
+  eventstore-volume-logs:
