@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 
 interface OrderAttrs {
+  id: string;
   name: string;
   productId: string;
   totalAmount: number;
@@ -28,8 +29,8 @@ const orderSchema = new mongoose.Schema(
     },
     totalAmount: {
       type: Number,
-      required: true
-    }
+      required: true,
+    },
   },
   {
     toJSON: {
@@ -42,7 +43,7 @@ const orderSchema = new mongoose.Schema(
 );
 
 orderSchema.statics.build = (attrs: OrderAttrs) => {
-  return new Order(attrs);
+  return new Order({ ...attrs, _id: attrs.id });
 };
 
 const Order = mongoose.model<OrderDoc, OrderModel>('Order', orderSchema);

@@ -13,7 +13,6 @@ async function start() {
     throw new Error('ME_CONFIG_MONGODB_URL not configured.');
   }
 
-  // async code
   new OrderCreatedListener().listen();
   new OrderUpdatedListener().listen();
   new OrderCancelledListener().listen();

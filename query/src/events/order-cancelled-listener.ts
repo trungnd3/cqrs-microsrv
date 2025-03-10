@@ -7,12 +7,17 @@ export class OrderCancelledListener extends Listener<OrderCancelled> {
   readonly stream = 'ORDER_CANCELLED_STREAM';
   readonly type = 'OrderCancelled';
 
-  onMessage({ data }: OrderCancelled['data']): void {
+  async onMessage(event: OrderCancelled['data']): Promise<void> {
     // Simulate async event processing
-    setTimeout(async () => {
-      const id = data.id;
-      await Order.findByIdAndDelete(id);
-      console.log('QUERY - ORDER CANCELLED:', { data });
-    }, 5000);
+    console.log('Order cancelling...', event);
+    if (!event.data.id.match(/^[0-9a-fA-F]{24}$/)) {
+      console.log('ID invalid');
+      return;
+    }
+    const id = event.data.id;
+    await Order.findByIdAndDelete(id);
+    console.log('QUERY - ORDER CANCELLED:', { event });
+    // setTimeout(async () => {
+    // }, 5000);
   }
 }

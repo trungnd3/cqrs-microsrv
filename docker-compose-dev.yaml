@@ -53,6 +53,7 @@ services:
       - /app/node_modules
       - ./command:/app
     depends_on:
+      - command.db
       - eventstore.db
 
   query.db:
@@ -77,6 +78,7 @@ services:
       - /app/node_modules
       - ./query:/app
     depends_on:
+      - query.db
       - eventstore.db
 
 volumes:
