@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { app } from './app';
 
 async function start() {
@@ -5,7 +6,11 @@ async function start() {
     throw new Error('EVENTSTORE_URL does not exist.');
   }
 
-  // async code
+  if (!process.env.ME_CONFIG_MONGODB_URL) {
+    throw new Error('ME_CONFIG_MONGODB_URL not configured.');
+  }
+
+  await mongoose.connect(process.env.ME_CONFIG_MONGODB_URL);
 
   const PORT = process.env.PORT || 3000;
   app.listen(PORT, () => {

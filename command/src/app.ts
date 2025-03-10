@@ -1,8 +1,9 @@
 import express from 'express';
-import { eventStoreClient } from './event-store';
-import { jsonEvent } from '@eventstore/db-client';
-import { OrderCancelled, OrderCreated, OrderUpdated } from './types/events';
 import { randomUUID } from 'crypto';
+import { OrderCreatedPublisher } from './events/order-created-publisher';
+import { OrderUpdatedPublisher } from './events/order-updated-publisher';
+import { OrderCancelledPublisher } from './events/order-cancelled-publisher';
+import Order from './models/order';
 
 const app = express();
 
@@ -11,7 +12,18 @@ app.use(express.json());
 app.post('/orders', async (req: express.Request, res: express.Response) => {
   const { name, productId, totalAmount } = req.body;
 
-  const orderCreatedEvent = jsonEvent<OrderCreated>({
+  const order = Order.build({
+    name, productId, totalAmount
+  })
+  await order.save();
+  console.log('COMMAND - ORDER CREATED:', {
+    id: order.id,
+    name: order.name,
+    productId: order.productId,
+    totalAmount: totalAmount
+  });
+
+  new OrderCreatedPublisher().publish({
     type: 'OrderCreated',
     data: {
       id: randomUUID(),
@@ -20,18 +32,35 @@ app.post('/orders', async (req: express.Request, res: express.Response) => {
       totalAmount,
     },
   });
-  await eventStoreClient.appendToStream(
-    'ORDER_CREATED_STREAM',
-    orderCreatedEvent
-  );
-  res.status(202).json({ message: 'Order created', orderCreatedEvent });
+
+  res
+    .status(202)
+    .json({ message: 'Order created', data: { name, productId, totalAmount } });
 });
 
 app.put('/orders/:id', async (req: express.Request, res: express.Response) => {
   const { id } = req.params;
   const { name, productId, totalAmount } = req.body;
 
-  const orderUpdatedEvent = jsonEvent<OrderUpdated>({
+  const order = await Order.findById(id);
+  if (!order) {
+    res.status(400).json({ message: 'Order not exist' });
+    return;
+  }
+
+  order.set('name', name);
+  order.set('productId', productId)
+  order.set('totalAmount', totalAmount)
+  await order.save();
+
+  console.log('COMMAND - ORDER UPDATED:', {
+    id: order.id,
+    name: order.name,
+    productId: order.productId,
+    totalAmount: totalAmount
+  });
+
+  new OrderUpdatedPublisher().publish({
     type: 'OrderUpdated',
     data: {
       id,
@@ -40,11 +69,13 @@ app.put('/orders/:id', async (req: express.Request, res: express.Response) => {
       totalAmount,
     },
   });
-  await eventStoreClient.appendToStream(
-    'ORDER_UPDATED_STREAM',
-    orderUpdatedEvent
-  );
-  res.status(202).json({ message: 'Order updated', orderUpdatedEvent });
+
+  res
+    .status(202)
+    .json({
+      message: 'Order updated',
+      data: { id, name, productId, totalAmount },
+    });
 });
 
 app.delete(
@@ -52,17 +83,20 @@ app.delete(
   async (req: express.Request, res: express.Response) => {
     const { id } = req.params;
 
-    const orderCancelledEvent = jsonEvent<OrderCancelled>({
+    await Order.findByIdAndDelete(id)
+
+    console.log('COMMAND - ORDER DELETED:', {
+      id,
+    });
+
+    new OrderCancelledPublisher().publish({
       type: 'OrderCancelled',
       data: {
         id,
       },
     });
-    await eventStoreClient.appendToStream(
-      'ORDER_CANCELLED_STREAM',
-      orderCancelledEvent
-    );
-    res.status(202).json({ message: 'Order cancelled', orderCancelledEvent });
+
+    res.status(202).json({ message: 'Order cancelled', data: { id } });
   }
 );
 

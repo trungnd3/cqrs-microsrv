@@ -26,10 +26,17 @@ services:
       context: ./nginx
       dockerfile: Dockerfile.dev
     ports:
-      - 3000:80
+      - 3639:80
     depends_on:
       - command
       - query
+
+  command.db:
+    restart: always
+    image: mongo
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=command
+      - MONGO_INITDB_ROOT_PASSWORD=command
 
   command:
     restart: always
@@ -37,12 +44,22 @@ services:
       context: ./command
       dockerfile: Dockerfile.dev
     environment:
-      - EVENTSTORE_URL=esdb://eventstore.db:2113?tls=false
+      - ME_CONFIG_MONGODB_ADMINUSERNAME: command
+      - ME_CONFIG_MONGODB_ADMINPASSWORD: command
+      - ME_CONFIG_MONGODB_URL: mongodb://command:command@command.db:27017/
+      - ME_CONFIG_BASICAUTH: false
     volumes:
       - /app/node_modules
       - ./command:/app
     depends_on:
       - eventstore.db
+
+  query.db:
+    restart: always
+    image: mongo
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=query
+      - MONGO_INITDB_ROOT_PASSWORD=query
 
   query:
     restart: always
@@ -50,7 +67,10 @@ services:
       context: ./query
       dockerfile: Dockerfile.dev
     environment:
-      - EVENTSTORE_URL=esdb://eventstore.db:2113?tls=false
+      - ME_CONFIG_MONGODB_ADMINUSERNAME: query
+      - ME_CONFIG_MONGODB_ADMINPASSWORD: query
+      - ME_CONFIG_MONGODB_URL: mongodb://query:query@query.db:27017/
+      - ME_CONFIG_BASICAUTH: false
     volumes:
       - /app/node_modules
       - ./query:/app
